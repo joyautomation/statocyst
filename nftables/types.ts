@@ -71,6 +71,12 @@ export type NftablesEntry =
   | { ct_expectation: NftCtExpectation }
   | { synproxy: NftSynproxy };
 
+export const isNftableEntryRule = (
+  entry: NftablesEntry,
+): entry is { rule: NftRule } => {
+  return "rule" in entry && isNftRule(entry.rule);
+};
+
 export const isNftablesEntry = (value: unknown): value is NftablesEntry => {
   return typeof value === "object" &&
     value !== null &&

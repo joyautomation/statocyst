@@ -12,7 +12,9 @@
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/path@^1.1.2": "1.1.3",
     "jsr:@std/path@^1.1.3": "1.1.3",
-    "jsr:@std/testing@^1.0.16": "1.0.16"
+    "jsr:@std/testing@^1.0.16": "1.0.16",
+    "jsr:@std/yaml@^1.0.10": "1.0.10",
+    "npm:@types/node@*": "24.2.0"
   },
   "jsr": {
     "@joyautomation/dark-matter@0.0.26": {
@@ -58,6 +60,20 @@
         "jsr:@std/internal@^1.0.12",
         "jsr:@std/path@^1.1.2"
       ]
+    },
+    "@std/yaml@1.0.10": {
+      "integrity": "245706ea3511cc50c8c6d00339c23ea2ffa27bd2c7ea5445338f8feff31fa58e"
+    }
+  },
+  "npm": {
+    "@types/node@24.2.0": {
+      "integrity": "sha512-3xyG3pMCq3oYCNg7/ZP+E1ooTaGB4cG8JWRsqqOYQdbWNY4zbaV0Ennrd7stjiJEFZCaybcIgpTjJWHRfBSIDw==",
+      "dependencies": [
+        "undici-types"
+      ]
+    },
+    "undici-types@7.10.0": {
+      "integrity": "sha512-t5Fy/nfn+14LuOc2KNYg75vZqClpAiqscVvMygNnlsHBFpSXdJaYtXMcdNLpl/Qvc3P2cB3s6lOV51nqsFq4ag=="
     }
   },
   "workspace": {
@@ -65,7 +81,8 @@
       "jsr:@joyautomation/dark-matter@^0.0.26",
       "jsr:@std/assert@1",
       "jsr:@std/expect@^1.0.17",
-      "jsr:@std/testing@^1.0.16"
+      "jsr:@std/testing@^1.0.16",
+      "jsr:@std/yaml@^1.0.10"
     ]
   }
 }
