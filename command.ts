@@ -72,7 +72,7 @@ export const runCommand = async (
 export const runCommandAndProcessOutput = <T>(
   processor: (output: string) => T = (output: string) => output as T,
   ...args: ConstructorParameters<typeof Deno.Command>
-) =>
+): Promise<Result<T>> =>
   pipeAsync(runCommand(...args), (result) => {
     if (isSuccess(result)) {
       return createSuccess(processor(result.output));

@@ -11,7 +11,7 @@ import {
   installIfNftMissing,
   isNftInstalled,
 } from "./command.ts";
-import { isSuccess, Result, ResultSuccess } from "@joyautomation/dark-matter";
+import { isSuccess } from "@joyautomation/dark-matter";
 import { isNftablesList, isNftRule, NftRule } from "./types.ts";
 import { resultIsSuccessAndMatches } from "../testUtils.ts";
 

@@ -3,9 +3,7 @@ import { createFail, Result, rpipeAsync } from "@joyautomation/dark-matter";
 import {
   isNftableEntryRule,
   isNftRule,
-  NftablesEntry,
   NftablesList,
-  NftChain,
   NftExpr,
   NftRule,
 } from "./types.ts";
