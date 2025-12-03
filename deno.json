@@ -1,6 +1,6 @@
 {
   "name": "@joyautomation/statocyst",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Network configuration and monitoring utilities for Linux systems",
   "author": "Joy Automation",
   "license": "GPL-3.0",
