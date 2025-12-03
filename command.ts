@@ -1,3 +1,31 @@
+/**
+ * @module
+ *
+ * Low-level command execution utilities.
+ *
+ * This module provides functions to execute shell commands and process their
+ * output using Result types for explicit error handling.
+ *
+ * @example
+ * ```ts
+ * import { runCommand, runCommandAndProcessOutput } from "@joyautomation/statocyst/command";
+ * import { isSuccess } from "@joyautomation/dark-matter";
+ *
+ * // Run a simple command
+ * const result = await runCommand("echo", { args: ["hello"] });
+ * if (isSuccess(result)) {
+ *   console.log(result.output); // "hello\n"
+ * }
+ *
+ * // Run and process JSON output
+ * const jsonResult = await runCommandAndProcessOutput(
+ *   (output) => JSON.parse(output),
+ *   "some-command",
+ *   { args: ["--json"] }
+ * );
+ * ```
+ */
+
 import {
   createErrorString,
   createFail,
