@@ -1,5 +1,7 @@
+import { Result } from "@joyautomation/dark-matter";
 import { runCommandAndProcessOutput } from "../command.ts";
 import * as YAML from "@std/yaml";
+import { NetplanConfig } from "./types.ts";
 
 /**
  * Retrieves the current netplan configuration.
@@ -18,9 +20,9 @@ import * as YAML from "@std/yaml";
  * }
  * ```
  */
-export const getNetplanConfig = () =>
-  runCommandAndProcessOutput(
-    (output) => YAML.parse(output),
+export const getNetplanConfig = (): Promise<Result<NetplanConfig>> =>
+  runCommandAndProcessOutput<NetplanConfig>(
+    (output) => YAML.parse(output) as NetplanConfig,
     "sudo",
     {
       args: [
