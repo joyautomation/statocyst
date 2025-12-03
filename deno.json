@@ -1,8 +1,21 @@
 {
   "name": "@joyautomation/statocyst",
-  "exports": "./mod.ts",
-  "version": "0.0.1",
-  "license": "MIT",
+  "version": "0.0.2",
+  "description": "Network configuration and monitoring utilities for Linux systems",
+  "author": "Joy Automation",
+  "license": "GPL-3.0",
+  "repository": "github:joyautomation/statocyst",
+  "homepage": "https://github.com/joyautomation/statocyst#readme",
+  "bugs": "https://github.com/joyautomation/statocyst/issues",
+  "declaration": true,
+  "exports": {
+    ".": "./mod.ts",
+    "./ip": "./ip/mod.ts",
+    "./netplan": "./netplan/mod.ts",
+    "./nftables": "./nftables/mod.ts",
+    "./tshark": "./tshark/mod.ts",
+    "./command": "./command.ts"
+  },
   "imports": {
     "@joyautomation/dark-matter": "jsr:@joyautomation/dark-matter@^0.0.26",
     "@std/assert": "jsr:@std/assert@1",
