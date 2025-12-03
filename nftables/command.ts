@@ -11,7 +11,25 @@ import {
 } from "./types.ts";
 import { createSuccess, isSuccess } from "@joyautomation/dark-matter";
 
-// Helper function to compare two NftRule objects for equality
+/**
+ * Compares two NftRule objects for equality.
+ *
+ * Compares rules based on family, table, chain, and expressions, while ignoring
+ * the handle (unique identifier) and counter expressions (which change over time).
+ *
+ * @param rule1 - First rule to compare
+ * @param rule2 - Second rule to compare
+ * @returns True if the rules are functionally equivalent, false otherwise
+ *
+ * @example
+ * ```ts
+ * const rule1 = await getRuleByHandle("ip", "nat", "PREROUTING", 5);
+ * const rule2 = await getRuleByHandle("ip", "nat", "PREROUTING", 6);
+ * if (isSuccess(rule1) && isSuccess(rule2)) {
+ *   const equal = areRulesEqual(rule1.output, rule2.output);
+ * }
+ * ```
+ */
 export const areRulesEqual = (rule1: NftRule, rule2: NftRule): boolean => {
   // Compare basic properties (ignore handle since it's a unique identifier)
   if (
@@ -38,17 +56,65 @@ export const areRulesEqual = (rule1: NftRule, rule2: NftRule): boolean => {
   return JSON.stringify(expr1) === JSON.stringify(expr2);
 };
 
+/**
+ * Checks if nftables is installed on the system.
+ *
+ * Uses the `which` command to determine if the `nft` binary is available.
+ *
+ * @returns A Promise resolving to a Result containing true if nftables is installed,
+ *          false otherwise
+ *
+ * @example
+ * ```ts
+ * const result = await isNftInstalled();
+ * if (isSuccess(result) && result.output) {
+ *   console.log("nftables is installed");
+ * }
+ * ```
+ */
 export const isNftInstalled = (): Promise<Result<boolean>> =>
   runCommandAndProcessOutput<boolean>((output) => output !== "", "which", {
     args: ["nft"],
   });
 
+/**
+ * Installs nftables using apt-get.
+ *
+ * Runs `sudo apt-get install nftables -y` with non-interactive mode.
+ * Requires sudo privileges.
+ *
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const result = await installNft();
+ * if (isSuccess(result)) {
+ *   console.log("nftables installed successfully");
+ * }
+ * ```
+ */
 export const installNft = (): Promise<Result<void>> =>
   runCommandAndProcessOutput<void>(undefined, "sudo", {
     args: ["apt-get", "install", "nftables", "-y"],
     env: { DEBIAN_FRONTEND: "noninteractive" },
   });
 
+/**
+ * Checks if nftables is installed and installs it if missing.
+ *
+ * Convenience function that combines isNftInstalled and installNft.
+ *
+ * @returns A Promise resolving to a Result containing an object with performedInstall
+ *          boolean indicating whether installation was performed
+ *
+ * @example
+ * ```ts
+ * const result = await installIfNftMissing();
+ * if (isSuccess(result)) {
+ *   console.log(`Installation performed: ${result.output.performedInstall}`);
+ * }
+ * ```
+ */
 export const installIfNftMissing = (): Promise<
   Result<{ performedInstall: boolean }>
 > =>
@@ -64,6 +130,21 @@ export const installIfNftMissing = (): Promise<
         : createSuccess({ performedInstall: false }),
   );
 
+/**
+ * Creates a new nftables table.
+ *
+ * @param family - Address family (e.g., "ip", "ip6", "inet")
+ * @param table - Table name to create
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const result = await createNfTable("ip", "custom");
+ * if (isSuccess(result)) {
+ *   console.log("Table created");
+ * }
+ * ```
+ */
 export const createNfTable = (
   family: string,
   table: string,
@@ -72,6 +153,24 @@ export const createNfTable = (
     args: ["nft", "-j", "add", "table", family, table],
   });
 
+/**
+ * Creates a new chain in an nftables table.
+ *
+ * @param family - Address family (e.g., "ip", "ip6", "inet")
+ * @param table - Table name containing the chain
+ * @param chain - Chain name to create
+ * @param type - Chain type (e.g., "filter", "nat", "route")
+ * @param hook - Netfilter hook point (e.g., "prerouting", "input", "forward", "output", "postrouting")
+ * @param priority - Chain priority (lower values are processed first)
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const result = await createNfTableChain(
+ *   "ip", "filter", "INPUT", "filter", "input", 0
+ * );
+ * ```
+ */
 export const createNfTableChain = (
   family: string,
   table: string,
@@ -93,6 +192,21 @@ export const createNfTableChain = (
     ],
   });
 
+/**
+ * Creates a standard NAT table with all standard chains.
+ *
+ * Creates the "nat" table with PREROUTING, INPUT, OUTPUT, and POSTROUTING chains.
+ *
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const result = await createNatNfTable();
+ * if (isSuccess(result)) {
+ *   console.log("NAT table created");
+ * }
+ * ```
+ */
 export const createNatNfTable = (): Promise<Result<void>> =>
   rpipeAsync(
     () => createNfTable("ip", "nat"),
@@ -104,6 +218,21 @@ export const createNatNfTable = (): Promise<Result<void>> =>
       createNfTableChain("ip", "nat", "POSTROUTING", "nat", "postrouting", 100),
   );
 
+/**
+ * Creates a standard filter table with all standard chains.
+ *
+ * Creates the "filter" table with INPUT, FORWARD, and OUTPUT chains.
+ *
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const result = await createFilterNfTable();
+ * if (isSuccess(result)) {
+ *   console.log("Filter table created");
+ * }
+ * ```
+ */
 export const createFilterNfTable = (): Promise<Result<void>> =>
   rpipeAsync(
     () => createNfTable("ip", "filter"),
@@ -112,6 +241,23 @@ export const createFilterNfTable = (): Promise<Result<void>> =>
     () => createNfTableChain("ip", "filter", "OUTPUT", "filter", "output", 0),
   );
 
+/**
+ * Creates a new rule in an nftables chain.
+ *
+ * @param family - Address family (e.g., "ip", "ip6", "inet")
+ * @param table - Table name containing the chain
+ * @param chain - Chain name to add the rule to
+ * @param rule - Rule specification in nftables syntax
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const result = await createRule(
+ *   "ip", "filter", "INPUT",
+ *   "tcp dport 22 counter accept"
+ * );
+ * ```
+ */
 export const createRule = (
   family: string,
   table: string,
@@ -122,6 +268,23 @@ export const createRule = (
     args: ["nft", "-j", "add", "rule", family, table, chain, rule],
   });
 
+/**
+ * Retrieves a specific rule by its handle.
+ *
+ * @param family - Address family (e.g., "ip", "ip6", "inet")
+ * @param table - Table name containing the chain
+ * @param chain - Chain name containing the rule
+ * @param handle - Unique handle identifier for the rule
+ * @returns A Promise resolving to a Result containing the NftRule if found
+ *
+ * @example
+ * ```ts
+ * const result = await getRuleByHandle("ip", "nat", "PREROUTING", 5);
+ * if (isSuccess(result)) {
+ *   console.log(result.output);
+ * }
+ * ```
+ */
 export const getRuleByHandle = (
   family: string,
   table: string,
@@ -139,6 +302,23 @@ export const getRuleByHandle = (
     },
   );
 
+/**
+ * Finds a rule in a chain that matches the given rule specification.
+ *
+ * Uses areRulesEqual to find a matching rule, ignoring handles and counters.
+ *
+ * @param family - Address family (e.g., "ip", "ip6", "inet")
+ * @param table - Table name containing the chain
+ * @param chain - Chain name to search
+ * @param ruleEntry - Rule specification to match against
+ * @returns A Promise resolving to a Result containing the matching NftRule if found
+ *
+ * @example
+ * ```ts
+ * const targetRule = { family: "ip", table: "nat", chain: "PREROUTING", expr: [...] };
+ * const result = await getRuleFromChain("ip", "nat", "PREROUTING", targetRule);
+ * ```
+ */
 export const getRuleFromChain = (
   family: string,
   table: string,
@@ -158,6 +338,23 @@ export const getRuleFromChain = (
     },
   );
 
+/**
+ * Deletes a rule by its handle.
+ *
+ * @param family - Address family (e.g., "ip", "ip6", "inet")
+ * @param table - Table name containing the chain
+ * @param chain - Chain name containing the rule
+ * @param handle - Unique handle identifier for the rule to delete
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const result = await deleteRuleByHandle("ip", "nat", "PREROUTING", 5);
+ * if (isSuccess(result)) {
+ *   console.log("Rule deleted");
+ * }
+ * ```
+ */
 export const deleteRuleByHandle = (
   family: string,
   table: string,
@@ -178,6 +375,23 @@ export const deleteRuleByHandle = (
     ],
   });
 
+/**
+ * Deletes a rule from a chain by matching its specification.
+ *
+ * Finds the rule using getRuleFromChain and deletes it by handle.
+ *
+ * @param family - Address family (e.g., "ip", "ip6", "inet")
+ * @param table - Table name containing the chain
+ * @param chain - Chain name containing the rule
+ * @param rule - Rule specification to match and delete
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const targetRule = { family: "ip", table: "nat", chain: "PREROUTING", expr: [...] };
+ * const result = await deleteRuleFromChain("ip", "nat", "PREROUTING", targetRule);
+ * ```
+ */
 export const deleteRuleFromChain = (
   family: string,
   table: string,
@@ -189,6 +403,23 @@ export const deleteRuleFromChain = (
     (result) => deleteRuleByHandle(family, table, chain, result.handle),
   );
 
+/**
+ * Deletes all rules from a chain that match the given specification.
+ *
+ * Finds all matching rules and deletes them in parallel.
+ *
+ * @param family - Address family (e.g., "ip", "ip6", "inet")
+ * @param table - Table name containing the chain
+ * @param chain - Chain name containing the rules
+ * @param rule - Rule specification to match and delete
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const targetRule = { family: "ip", table: "nat", chain: "PREROUTING", expr: [...] };
+ * const result = await deleteAllMatchingRulesFromChain("ip", "nat", "PREROUTING", targetRule);
+ * ```
+ */
 export const deleteAllMatchingRulesFromChain = (
   family: string,
   table: string,
@@ -223,6 +454,24 @@ export const deleteAllMatchingRulesFromChain = (
     },
   );
 
+/**
+ * Creates a Destination NAT (DNAT) rule.
+ *
+ * Redirects packets destined for sourceAddr to destAddr.
+ *
+ * @param sourceAddr - Source IP address to match
+ * @param destAddr - Destination IP address to NAT to
+ * @param family - Address family (default: "ip")
+ * @param table - Table name (default: "nat")
+ * @param chain - Chain name (default: "PREROUTING")
+ * @param comment - Optional comment for the rule
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const result = await createDnatRule("192.168.1.100", "10.0.0.5", "ip", "nat", "PREROUTING", "Web server");
+ * ```
+ */
 export const createDnatRule = (
   sourceAddr: string,
   destAddr: string,
@@ -240,6 +489,21 @@ export const createDnatRule = (
     }`,
   );
 
+/**
+ * Finds a DNAT rule in a chain by source and destination addresses.
+ *
+ * @param family - Address family (e.g., "ip", "ip6", "inet")
+ * @param table - Table name containing the chain
+ * @param chain - Chain name to search
+ * @param sourceAddr - Source IP address to match
+ * @param destAddr - Destination IP address to match
+ * @returns A Promise resolving to a Result containing the NftRule if found, undefined otherwise
+ *
+ * @example
+ * ```ts
+ * const result = await getDNatRuleFromChain("ip", "nat", "PREROUTING", "192.168.1.100", "10.0.0.5");
+ * ```
+ */
 export const getDNatRuleFromChain = (
   family: string,
   table: string,
@@ -280,6 +544,24 @@ export const getDNatRuleFromChain = (
       })),
   );
 
+/**
+ * Creates a Source NAT (SNAT) rule.
+ *
+ * Changes the source address of packets from sourceAddr to destAddr.
+ *
+ * @param sourceAddr - Source IP address to match
+ * @param destAddr - New source IP address to NAT to
+ * @param family - Address family (default: "ip")
+ * @param table - Table name (default: "nat")
+ * @param chain - Chain name (default: "POSTROUTING")
+ * @param comment - Optional comment for the rule
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const result = await createSnatRule("10.0.0.5", "192.168.1.1");
+ * ```
+ */
 export const createSnatRule = (
   sourceAddr: string,
   destAddr: string,
@@ -297,6 +579,22 @@ export const createSnatRule = (
     }`,
   );
 
+/**
+ * Creates a double NAT rule (DNAT + SNAT).
+ *
+ * Combines DNAT and SNAT to redirect traffic from publicAddr to privateAddr
+ * while changing the source to natAddr.
+ *
+ * @param publicAddr - Public IP address to match
+ * @param privateAddr - Private IP address to NAT to
+ * @param natAddr - NAT source address
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const result = await createDoubleNatRule("203.0.113.1", "10.0.0.5", "192.168.1.1");
+ * ```
+ */
 export const createDoubleNatRule = (
   publicAddr: string,
   privateAddr: string,
@@ -307,6 +605,21 @@ export const createDoubleNatRule = (
     () => createSnatRule(privateAddr, natAddr),
   );
 
+/**
+ * Creates a standard mangle table with all standard chains.
+ *
+ * Creates the "mangle" table with PREROUTING, INPUT, FORWARD, OUTPUT, and POSTROUTING chains.
+ *
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const result = await createMangleNfTable();
+ * if (isSuccess(result)) {
+ *   console.log("Mangle table created");
+ * }
+ * ```
+ */
 export const createMangleNfTable = (): Promise<Result<void>> =>
   rpipeAsync(
     () => createNfTable("ip", "mangle"),
@@ -335,7 +648,21 @@ export const createMangleNfTable = (): Promise<Result<void>> =>
       ),
   );
 
-// Initialize nftables with standard iptables-like tables and chains
+/**
+ * Initializes nftables with standard iptables-like tables and chains.
+ *
+ * Creates nat, filter, and mangle tables with all their standard chains.
+ *
+ * @returns A Promise resolving to a Result indicating success or failure
+ *
+ * @example
+ * ```ts
+ * const result = await initializeStandardTables();
+ * if (isSuccess(result)) {
+ *   console.log("Standard tables initialized");
+ * }
+ * ```
+ */
 export const initializeStandardTables = (): Promise<Result<void>> =>
   rpipeAsync(
     () => createNatNfTable(),
@@ -343,7 +670,19 @@ export const initializeStandardTables = (): Promise<Result<void>> =>
     () => createMangleNfTable(),
   );
 
-// Get all tables
+/**
+ * Retrieves all nftables tables.
+ *
+ * @returns A Promise resolving to a Result containing the NftablesList
+ *
+ * @example
+ * ```ts
+ * const result = await getTables();
+ * if (isSuccess(result)) {
+ *   console.log(result.output.nftables);
+ * }
+ * ```
+ */
 export const getTables = (): Promise<Result<NftablesList>> =>
   runCommandAndProcessOutput<NftablesList>(
     (output) => JSON.parse(output) as NftablesList,
@@ -351,7 +690,21 @@ export const getTables = (): Promise<Result<NftablesList>> =>
     { args: ["nft", "-j", "list", "tables"] },
   );
 
-// Get a specific table
+/**
+ * Retrieves a specific nftables table.
+ *
+ * @param family - Address family (e.g., "ip", "ip6", "inet")
+ * @param tableName - Name of the table to retrieve
+ * @returns A Promise resolving to a Result containing the NftablesList
+ *
+ * @example
+ * ```ts
+ * const result = await getTable("ip", "nat");
+ * if (isSuccess(result)) {
+ *   console.log(result.output.nftables);
+ * }
+ * ```
+ */
 export const getTable = (
   family: string,
   tableName: string,
@@ -362,7 +715,19 @@ export const getTable = (
     { args: ["nft", "-j", "list", "table", family, tableName] },
   );
 
-// Get all rules from all tables
+/**
+ * Retrieves all rules from all nftables tables.
+ *
+ * @returns A Promise resolving to a Result containing an array of NftRule objects
+ *
+ * @example
+ * ```ts
+ * const result = await getRules();
+ * if (isSuccess(result)) {
+ *   console.log(`Total rules: ${result.output.length}`);
+ * }
+ * ```
+ */
 export const getRules = (): Promise<Result<NftRule[]>> =>
   rpipeAsync(
     () => getTables(),
@@ -370,7 +735,21 @@ export const getRules = (): Promise<Result<NftRule[]>> =>
       createSuccess(result.nftables.filter((entry) => isNftRule(entry))),
   );
 
-// Get rules from a specific table
+/**
+ * Retrieves all rules from a specific table.
+ *
+ * @param family - Address family (e.g., "ip", "ip6", "inet")
+ * @param tableName - Name of the table
+ * @returns A Promise resolving to a Result containing an array of NftRule objects
+ *
+ * @example
+ * ```ts
+ * const result = await getRulesFromTable("ip", "nat");
+ * if (isSuccess(result)) {
+ *   console.log(result.output);
+ * }
+ * ```
+ */
 export const getRulesFromTable = (
   family: string,
   tableName: string,
@@ -385,6 +764,22 @@ export const getRulesFromTable = (
       ),
   );
 
+/**
+ * Retrieves a specific chain from a table.
+ *
+ * @param family - Address family (e.g., "ip", "ip6", "inet")
+ * @param tableName - Name of the table containing the chain
+ * @param chainName - Name of the chain to retrieve
+ * @returns A Promise resolving to a Result containing the NftablesList
+ *
+ * @example
+ * ```ts
+ * const result = await getChain("ip", "nat", "PREROUTING");
+ * if (isSuccess(result)) {
+ *   console.log(result.output.nftables);
+ * }
+ * ```
+ */
 export const getChain = (
   family: string,
   tableName: string,
@@ -396,6 +791,22 @@ export const getChain = (
     { args: ["nft", "-j", "list", "chain", family, tableName, chainName] },
   );
 
+/**
+ * Retrieves all rules from a specific chain.
+ *
+ * @param family - Address family (e.g., "ip", "ip6", "inet")
+ * @param tableName - Name of the table containing the chain
+ * @param chainName - Name of the chain
+ * @returns A Promise resolving to a Result containing an array of NftRule objects
+ *
+ * @example
+ * ```ts
+ * const result = await getRulesFromChain("ip", "nat", "PREROUTING");
+ * if (isSuccess(result)) {
+ *   result.output.forEach(rule => console.log(rule));
+ * }
+ * ```
+ */
 export const getRulesFromChain = (
   family: string,
   tableName: string,
